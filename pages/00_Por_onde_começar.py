@@ -1,7 +1,6 @@
 import streamlit as st
 
 # Configuração da página
-# Recomendo manter apenas se esta for a página principal; caso contrário, o Streamlit gere automaticamente.
 st.set_page_config(page_title="Guia de Início - Cirurgia", page_icon="📖", layout="wide")
 
 st.title("📖 Guia de Início - Especialidades Cirúrgicas")
@@ -10,11 +9,13 @@ st.markdown("---")
 # --- SECÇÃO 1: PREPARAR A PLANILHA ---
 st.header("1️⃣ Preparar a sua Planilha")
 
-# NOVO: Instrução de Obtenção de Listas
+# Instrução de Obtenção de Listas
 st.markdown("### 📋 Obtenção de Listas Pessoais")
 st.write("Antes de começar, certifique-se de que extraiu as listagens operatórias corretas do sistema hospitalar.")
 st.link_button("Ver Instruções de Obtenção de Listas 📄", "https://drive.google.com/file/d/1admteRooOe45rFAppOeU9kOrffbg0Mbq/view?usp=drive_link")
-st.markdown("<br>", unsafe_allow_stdio=True)
+
+# CORREÇÃO AQUI: Mudado de stdio para html
+st.markdown("<br>", unsafe_allow_html=True)
 
 col_a, col_b = st.columns(2)
 
