@@ -16,9 +16,6 @@ PROC_MIN_X = 290
 PROC_MAX_X = 480
 DOC_MAX_X  = 290
 
-# Prefixos de processo suportados (HCIS ou CCC)
-PROC_PREFIX_RE = re.compile(r'HCIS|CCC', re.I)
-
 
 # ─── Funções de parsing PDF ───────────────────────────────────────────────────
 
@@ -70,10 +67,9 @@ def parse_cirurgias_pdf(pdf_bytes):
                 for top, ws in row_clusters
             ]
 
-            # Detecta linhas de início de registo com HCIS ou CCC
             rec_starts = [
                 i for i, (top, l, p, ws) in enumerate(row_data)
-                if date_re.match(l) and PROC_PREFIX_RE.search(l)
+                if date_re.match(l) and re.search(r'CCC', l, re.I)
             ]
 
             for idx, start in enumerate(rec_starts):
@@ -87,12 +83,10 @@ def parse_cirurgias_pdf(pdf_bytes):
                 pts = date_raw.split('-')
                 date_fmt = f"{pts[2]}-{pts[1]}-{pts[0]}" if len(pts) == 3 else date_raw
 
-                # Número de processo: suporta "HCIS / 123" e "CCC / 123"
-                pm = re.search(r'(?:HCIS|CCC)\s*/\s*(\d+)', first_left, re.I)
+                pm = re.search(r'CCC\s*/\s*(\d+)', first_left)
                 proc_num = pm.group(1) if pm else ""
 
-                # Nome do doente: texto após "HCIS / 123 - " ou "CCC / 123 - "
-                nm = re.search(r'(?:HCIS|CCC)\s*/\s*\d+\s*-\s*(.+)', first_left, re.I)
+                nm = re.search(r'CCC\s*/\s*\d+\s*-\s*(.+)', first_left)
                 name_acc = [nm.group(1).strip()] if nm else []
 
                 urgency = ""
@@ -182,6 +176,7 @@ def append_to_sheets(records, sheet_url, pdf_name=""):
         ws = sh.worksheet("Cirurgias")
     except gspread.exceptions.WorksheetNotFound:
         ws = sh.add_worksheet(title="Cirurgias", rows=2000, cols=20)
+        # Aba nova: escrever cabeçalhos na linha 1 a partir de C
         ws.update(
             range_name="C1:H1",
             values=[["Data", "Nº Processo", "Doente", "Procedimentos", "Urgência", "Origem"]]
@@ -192,7 +187,7 @@ def append_to_sheets(records, sheet_url, pdf_name=""):
         })
 
     # Primeira linha livre na coluna C
-    col_c_values = ws.col_values(3)
+    col_c_values = ws.col_values(3)       # valores actuais da coluna C
     first_free_row = len(col_c_values) + 1
 
     # Construir linhas: colunas C a H (dados + nome do PDF de origem)
