@@ -206,7 +206,7 @@ def append_to_sheets(records, sheet_url, pdf_name=""):
 
 # ─── Interface ────────────────────────────────────────────────────────────────
 
-st.title("📋 Extração de Cirurgias — GHRO4045R")
+st.title("📋 Extração de Ajudas — GHRO4045R")
 st.markdown(
     "Carregue o PDF de **Cirurgias por Interveniente**. "
     "Os dados são extraídos e escritos automaticamente na aba **Ajudas** "
