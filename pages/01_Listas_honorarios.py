@@ -83,6 +83,21 @@ RE_IGNORAR = re.compile(
 )
 
 
+def formatar_data(data_raw: str) -> str:
+    """
+    Converte DD-MM-YY → DD-MM-YYYY com zero-padding garantido.
+    Devolve texto puro; com value_input_option='RAW' o Sheets
+    nunca converte para número de série de data.
+    """
+    p = data_raw.strip().split('-')
+    if len(p) == 3:
+        dia = p[0].zfill(2)
+        mes = p[1].zfill(2)
+        ano = p[2] if len(p[2]) == 4 else f"20{p[2]}"
+        return f"{dia}-{mes}-{ano}"
+    return data_raw.strip()
+
+
 def extrair_entidade_proc(resto: str) -> tuple[str, str]:
     """
     Dado o texto após o serviço, extrai entidade pagadora e início do procedimento.
@@ -104,7 +119,7 @@ def extrair_entidade_proc(resto: str) -> tuple[str, str]:
     if not m:
         return sem_cod_ent.strip(), ""
 
-    entidade   = sem_cod_ent[:m.start()].strip()
+    entidade     = sem_cod_ent[:m.start()].strip()
     apos_digitos = sem_cod_ent[m.end():]
 
     # Elimina sufixo de código (PT ou T) quando colado ao procedimento
@@ -156,9 +171,8 @@ def parsear_pagina(texto: str, grupo_atual: str) -> tuple[list, str]:
         # Extrai entidade e procedimento
         entidade, procedimento = extrair_entidade_proc(resto)
 
-        # Formata data: DD-MM-YY → DD-MM-YYYY (com zero-padding no dia e mês)
-        p = data_raw.split('-')
-        data_fmt = f"{p[0].zfill(2)}-{p[1].zfill(2)}-20{p[2]}"
+        # Formata data: DD-MM-YY → DD-MM-YYYY (texto puro, zero-padded)
+        data_fmt = formatar_data(data_raw)
 
         # Formata valor: "1,125.20" → "1125,20" | "-50.00" → "-50,00"
         valor = valor_raw.replace(',', '').replace('.', ',')
@@ -197,7 +211,8 @@ try:
         worksheet = sh.worksheet(NOME_FOLHA)
     except Exception:
         worksheet = sh.add_worksheet(title=NOME_FOLHA, rows="10000", cols="15")
-        worksheet.update(range_name="B1", values=CABECALHO)
+        # RAW: cabeçalho gravado como texto, sem interpretação pelo Sheets
+        worksheet.update(range_name="B1", values=CABECALHO, value_input_option="RAW")
 
 except Exception as e:
     st.error(f"❌ Erro de ligação ao Google Sheets: {e}")
@@ -209,7 +224,8 @@ except Exception as e:
 st.title("💶 Extração de Honorários")
 st.info(
     "Extrai todas as linhas dos PDFs **Mapa de Honorários - Detalhe** para o Google Sheets.  \n"
-    "Sem deduplicação — todas as linhas são gravadas, incluindo extornos (valores negativos)."
+    "Sem deduplicação — todas as linhas são gravadas, incluindo extornos (valores negativos).  \n"
+    "Datas gravadas como texto DD-MM-YYYY."
 )
 
 uploads = st.file_uploader(
@@ -250,22 +266,25 @@ if uploads and st.button("🚀 Iniciar Processamento"):
         st.write(f"**{pdf_file.name}** — {len(todas_linhas)} linhas extraídas")
 
         if todas_linhas:
-            # Determina a primeira linha vazia na coluna B (garante que nunca escreve na coluna A)
-            col_b = worksheet.col_values(2)  # coluna B (índice 2)
+            # Determina a primeira linha vazia na coluna B
+            # (garante que nunca escreve na coluna A independentemente de PDFs anteriores)
+            col_b = worksheet.col_values(2)   # coluna B (índice 2)
             primeira_linha_livre = len(col_b) + 1
 
-            # Gravação em lotes de 500 com range explícito a partir da coluna B
+            # Gravação em lotes de 500 com range explícito a partir da coluna B.
+            # RAW = o Sheets não interpreta o conteúdo; "05-04-2024" fica como
+            # texto puro e nunca é convertido para número de série de data.
             for i in range(0, len(todas_linhas), 500):
                 lote = todas_linhas[i:i+500]
-                range_destino = f"B{primeira_linha_livre}"
                 worksheet.update(
-                    range_name=range_destino,
+                    range_name=f"B{primeira_linha_livre}",
                     values=lote,
-                    value_input_option="USER_ENTERED"
+                    value_input_option="RAW"
                 )
                 primeira_linha_livre += len(lote)
                 if len(todas_linhas) > 500:
                     time.sleep(1)
+
             st.toast(f"✅ {len(todas_linhas)} linhas gravadas de {pdf_file.name}")
         else:
             # Diagnóstico se nada extraído
